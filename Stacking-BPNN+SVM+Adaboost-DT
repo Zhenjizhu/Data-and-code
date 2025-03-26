@@ -1,0 +1,81 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.model_selection import KFold
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_curve
+from sklearn.metrics import classification_report
+import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings("ignore")
+#Stacking-BPNN+SVM+RF+Adaboost
+data_f=pd.read_excel(r'……\数据.xlsx',sheet_name='PCA+F')
+data_ft=pd.read_excel(r'……\数据.xlsx',sheet_name='PCA+FT')
+X_f=data_f.iloc[:,4:].values
+Y_f=data_f.iloc[:,1].values
+X_ft=data_ft.iloc[:,4:].values
+Y_ft=data_ft.iloc[:,1].values
+#Financial
+Xtrain_f, Xtest_f, Ytrain_f, Ytest_f = train_test_split(X_f,Y_f,test_size=0.3,stratify=Y_f)
+kf=KFold(n_splits=12,shuffle=True,random_state=100)
+n_train=Xtrain_f.shape[0]
+n_test=Xtest_f.shape[0]
+
+models=[MLPClassifier(hidden_layer_sizes=(5, ), 
+                 activation='identity',
+                 solver='lbfgs',
+                 max_iter=5000,
+                 random_state=60),
+        SVC(C=0.060061054054054,
+         kernel='rbf',
+         gamma=0.160161144144144,
+         probability=True),
+        AdaBoostClassifier(base_estimator=DecisionTreeClassifier(max_depth=23,
+                                                                random_state=60,
+                                                                max_features=5,
+                                                                min_samples_leaf=2,
+                                                                min_samples_split=7),
+                           n_estimators=159,
+                           learning_rate=0.003003004,
+                           random_state=60)
+]
+
+def get_oof(model,x_train,y_train,x_test):
+    oof_train=np.zeros((n_train,)) 
+    oof_test=np.zeros((n_test,))  
+    oof_test_skf=np.zeros((12,n_test)) 
+    for i,(train_index,test_index) in enumerate(kf.split(x_train)):
+        kf_x_train=x_train[train_index]              
+        kf_y_train=y_train[train_index]            
+        kf_x_test=x_train[test_index]               
+        model=model.fit(kf_x_train,kf_y_train)
+        oof_train[test_index]=model.predict(kf_x_test)      
+        oof_test_skf[i,:]=model.predict(x_test)             
+    oof_test[:]=oof_test_skf.mean(axis=0)           
+    return oof_train,oof_test     
+number_models=len(models)
+Xtrain_new=np.zeros((n_train,number_models))
+Xtest_new=np.zeros((n_test,number_models))
+for i,classifier in enumerate(models):
+    Xtrain_new[:,i],Xtest_new[:,i]=get_oof(classifier,Xtrain_f,Ytrain_f,Xtest_f)
+
+reg=DecisionTreeClassifier()   
+reg=reg.fit(Xtrain_new,Ytrain_f)
+score=reg.score(Xtest_new,Ytest_f)
+y_pred=reg.predict(Xtest_new)
+y_proba=reg.predict_proba(Xtest_new)[:,1]
+fpr, tpr, thresholds_ft = roc_curve(Ytest_f, y_proba)    
+cm=confusion_matrix(Ytest_f, y_pred, labels=[1,0])
+auc=roc_auc_score(Ytest_f, y_proba)
+
+print('Financial')
+print(score,cm,auc,sep='\n')
