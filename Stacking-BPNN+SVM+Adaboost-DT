@@ -18,8 +18,8 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 #Stacking-BPNN+SVM+RF+Adaboost
-data_f=pd.read_excel(r'……\数据.xlsx',sheet_name='PCA+F')
-data_ft=pd.read_excel(r'……\数据.xlsx',sheet_name='PCA+FT')
+data_f=pd.read_excel(r'……\data.xlsx',sheet_name='PCA+F')
+data_ft=pd.read_excel(r'……\data.xlsx',sheet_name='PCA+FT')
 X_f=data_f.iloc[:,4:].values
 Y_f=data_f.iloc[:,1].values
 X_ft=data_ft.iloc[:,4:].values
